@@ -45,7 +45,21 @@ corepack enable
 yarn set version stable
 ```
 
-This writes a `packageManager` field to `package.json` and creates a `.yarn/` directory. Then install dependencies:
+This creates `.yarnrc.yml` with a `yarnPath` entry. Read that file and add the following settings to it so the final `.yarnrc.yml` contains:
+
+```yaml
+compressionLevel: mixed
+
+enableGlobalCache: false
+
+nodeLinker: node-modules
+
+yarnPath: .yarn/releases/yarn-<version>.cjs
+```
+
+Keep the existing `yarnPath` line as-is — only add the three new lines. The `nodeLinker: node-modules` setting disables PnP in favour of a standard `node_modules` tree, which avoids peer-dependency resolution issues at runtime.
+
+Then install dependencies:
 
 ```bash
 yarn install
@@ -55,17 +69,16 @@ yarn install
 
 ## Step 3 — Add Vitest and React Testing Library
 
-Install test dependencies:
+Install test dependencies (including `@testing-library/dom`, which is a required peer dep of `@testing-library/react`):
 
 ```bash
-yarn add -D vitest @vitest/ui jsdom @testing-library/react @testing-library/jest-dom @types/node
+yarn add -D vitest @vitest/ui jsdom @testing-library/react @testing-library/dom @testing-library/jest-dom @types/node
 ```
 
 Update `vite.config.ts` to add the test configuration block. Read the file first, then replace the export with:
 
 ```ts
-/// <reference types="vitest" />
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
@@ -82,13 +95,19 @@ export default defineConfig({
 });
 ```
 
+Importing `defineConfig` from `"vitest/config"` (rather than `"vite"`) is the Vitest 3+ recommended pattern and ensures the `test` block is fully typed without needing a triple-slash reference.
+
 Create `vitest.setup.ts` in the project root:
 
 ```ts
 import "@testing-library/jest-dom";
 ```
 
-Update `tsconfig.app.json` (or `tsconfig.json` if that's the only one) to include the vitest globals type. Add `"types": ["vitest/globals"]` inside `compilerOptions`. Read the file first to avoid overwriting.
+Update `tsconfig.app.json` (or `tsconfig.json` if that's the only one) to include Vitest and jest-dom types. Read the file first, then ensure `compilerOptions.types` contains all three entries:
+
+```json
+"types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"]
+```
 
 Add test scripts to `package.json`:
 
@@ -120,7 +139,7 @@ import tseslint from "typescript-eslint";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  { ignores: ["dist", ".yarn"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
@@ -161,7 +180,19 @@ If any command fails, diagnose and fix the issue before continuing.
 
 ---
 
-## Step 6 — Report
+## Step 6 — Initialize git repository
+
+Initialize a git repository and create an initial commit capturing the complete scaffolded state:
+
+```bash
+git init
+git add .
+git commit -m "Initial commit: scaffold with Vite, React, TypeScript, Vitest and ESLint a11y"
+```
+
+---
+
+## Step 7 — Report
 
 Tell the user:
 
